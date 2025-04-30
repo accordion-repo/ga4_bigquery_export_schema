@@ -27,6 +27,9 @@
 
         when {{ source }} like '%wikipedia%' 
         then 'wikipedia'
+
+        when {{ source }} = 'data not available'
+        then null
         
         else {{ source }}
     end
