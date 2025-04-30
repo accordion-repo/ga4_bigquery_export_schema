@@ -1,131 +1,187 @@
-{% macro udf_acquisition_channel_grouping(source, medium, campaign) %}
+{% macro udf_acquisition_channel_grouping(ss, sm, sc) %}
 
     case
+        -- TV
         when
-            {{ source }} like '%mntn%'
-            or {{ source }} like '%tatari%'
-            or {{ medium }} like '%tv%'
-            or {{ medium }} like '%television_prospecting%'
+            coalesce({{ ss }}, '') ilike '%mntn%'
+            or coalesce({{ sm }}, '') ilike '%tv%'
+            or coalesce({{ ss }}, '') ilike '%tatari%'
+            or coalesce({{ sm }}, '') ilike '%television_prospecting%'
+            or coalesce({{ ss }}, '') ilike '%ctv%'
         then 'TV'
 
+        -- YouTube
         when
-            {{ source }} like '%youtube%'
-            or {{ campaign }} like '%youtube%'
-            or {{ campaign }} like '%demand gen%'
-            or {{ campaign }} like '%dgen%'
+            coalesce({{ ss }}, '') ilike '%youtube%'
+            or coalesce({{ sc }}, '') ilike '%youtube%'
+            or coalesce({{ sc }}, '') ilike '%demandgen%'
+            or coalesce({{ sc }}, '') ilike '%dgen%'
         then 'YouTube'
 
-        when
-            ({{ medium }} like '%ppc%' or {{ medium }} like '%cpc%')
-            and {{ campaign }} like '%brand%'
-            and {{ campaign }} not like '%performance max%'
-        then 'Paid Brand Search'
-
+        -- Paid Brand Search
         when
             (
-                {{ medium }} like '%cpc%'
-                or {{ medium }} like '%paid_shopping%'
-                or {{ medium }} like '%paid_search%'
-                or {{ campaign }} like '%pla_%'
-                or {{ campaign }} like '%pmax%'
-                or {{ campaign }} like '%search%'
-                --or {{ sp }} like '%google%'
+                (
+                    coalesce({{ sm }}, '') ilike '%ppc%'
+                    or coalesce({{ sm }}, '') ilike '%cpc%'
+                )
+                and coalesce({{ sc }}, '') ilike '%brand%'
+                and coalesce({{ sc }}, '') not ilike '%performance max%'
             )
-            and (
-                {{ campaign }} not like '%demand gen%'
-                or {{ campaign }} not like '%dgen%'
-                or {{ campaign }} not like '%brand%'
-                or {{ campaign }} is null
+        then 'Paid Brand Search'
+
+        -- Partnership
+        when
+            coalesce({{ sm }}, '') ilike '%partnership%'
+            or coalesce({{ ss }}, '') ilike '%partnership%'
+            or coalesce({{ sc }}, '') ilike '%NOBULL Athletes%'
+            or coalesce({{ sc }}, '') ilike '%NOBULLInfluencers%'
+        then 'Partnership'
+
+        -- Affiliates
+        when
+            (
+                coalesce({{ sm }}, '') ilike '%affiliate%'
+                or coalesce({{ ss }}, '') ilike '%impact%'
+                or coalesce({{ ss }}, '') ilike '%api.id.me%'
+                or coalesce({{ ss }}, '') ilike '%shop.id.me%'
+                or coalesce({{ sc }}, '') ilike '%Ebates%'
+                or coalesce({{ sc }}, '') ilike '%BeFrugal.com%'
+            )
+            and not (
+                coalesce({{ ss }}, '') ilike '%spotify%'
+                or coalesce({{ ss }}, '') ilike '%tb12%'
+            )
+        then 'Affiliates'
+
+        -- Paid Non-Brand Search
+        when
+            (
+                coalesce({{ sm }}, '') ilike '%cpc%'
+                or coalesce({{ sm }}, '') ilike '%paid_shopping%'
+                or coalesce({{ sm }}, '') ilike '%paid_search%'
+                -- COALESCE( {{ sp }} , '') ILIKE '%google ads%' or
+                or coalesce({{ sc }}, '') ilike '%pla_%'
+                or coalesce({{ sc }}, '') ilike '%pmax%'
+                or coalesce({{ sc }}, '') ilike '%search%'
+            )
+            and not (
+                coalesce({{ sc }}, '') ilike '%brand%'
+                or coalesce({{ sc }}, '') ilike '%junky%'
+                or coalesce({{ sc }}, '') ilike '%Ebates%'
             )
         then 'Paid Non-Brand Search'
 
+        -- Paid Social
         when
             (
-                {{ source }} like '%facebook%'
-                or {{ source }} like '%instagram%'
-                or {{ source }} like '%meta%'
-                or {{ source }} like '%igshopping%'
+                coalesce({{ ss }}, '') ilike '%facebook%'
+                or coalesce({{ ss }}, '') ilike '%instagram%'
+                or coalesce({{ ss }}, '') ilike '%meta%'
+                or coalesce({{ ss }}, '') ilike '%igshopping%'
+                or coalesce({{ ss }}, '') = 'tinuiti'
             )
-            and {{ medium }} like '%paid%'
+            and (coalesce({{ sm }}, '') ilike '%paid%')
         then 'Paid Social'
 
-        when {{ source }} like '%tiktok%' and {{ medium }} like '%paid%'
-        then 'TikTok'
-
+        -- TikTok
         when
-            {{ source }} like '%email%'
-            or {{ source }} like '%e-mail%'
-            or {{ source }} like '%e_mail%'
-            or {{ source }} like '%e mail%'
-            or {{ source }} like '%bluecore%'
-            or {{ source }} like '%emarsys%'
-            or {{ medium }} like '%email%'
-            or {{ medium }} like '%e-mail%'
-            or {{ medium }} like '%e_mail%'
-            or {{ medium }} like '%e mail%'
+            coalesce({{ ss }}, '') ilike '%tiktok%'
+            and coalesce({{ sm }}, '') ilike '%paid%'
+        then 'TikTok'  -- closed the missing paren
+
+        -- Email (with GA4 logic)
+        when
+            (
+                coalesce({{ ss }}, '') ilike '%email%'
+                or coalesce({{ ss }}, '') ilike '%e-mail%'
+                or coalesce({{ ss }}, '') ilike '%e_mail%'
+                or coalesce({{ ss }}, '') ilike '%e mail%'
+                or coalesce({{ sm }}, '') ilike '%email%'
+                or coalesce({{ sm }}, '') ilike '%e-mail%'
+                or coalesce({{ sm }}, '') ilike '%e_mail%'
+                or coalesce({{ sm }}, '') ilike '%e mail%'
+                or coalesce({{ ss }}, '') ilike '%bluecore%'
+                or coalesce({{ ss }}, '') ilike '%emarsys%'
+            )
         then 'Email'
 
+        -- SMS
         when
-            {{ source }} like '%attentive%'
-            or {{ source }} like '%sms%'
-            or {{ medium }} like '%text%'
-            or {{ medium }} like '%sms%'
+            (
+                coalesce({{ sm }}, '') ilike '%sms%'
+                or coalesce({{ sm }}, '') ilike '%text%'
+                or coalesce({{ ss }}, '') ilike '%attentive%'
+                or coalesce({{ ss }}, '') = 'sms'
+            )
         then 'SMS'
 
+        -- Audio
         when
-            (
-                {{ source }} like '%impact%'
-                or {{ source }} like '%api.id.me%'
-                or {{ source }} like '%shop.id.me%'
-                or {{ medium }} like '%affiliate%'
-                or {{ medium }} like '%partnership%'
-                or {{ campaign }} like '%nobull%'
-            )
-            and ({{ source }} not like '%spotify%' or {{ source }} not like '%tb12%')
-        then 'Affiliates'
-
-        when {{ source }} like '%spotify%' or {{ source }} like '%podcast%' or {{medium}} = 'audio'
+            coalesce({{ ss }}, '') ilike '%spotify%'
+            or coalesce({{ ss }}, '') ilike '%podcast%'
+            or coalesce({{ sm }}, '') ilike '%audio%'
         then 'Audio'
 
-        when {{ source }} like '%twitter%' and {{ medium }} like '%paid social%'
+        -- Twitter
+        when
+            coalesce({{ ss }}, '') ilike '%twitter%'
+            and coalesce({{ sm }}, '') ilike '%paid%'
         then 'Twitter'
 
-        when {{ source }} like '%pinterest%' and {{ medium }} like '%paid social%'
+        -- Pinterest
+        when
+            coalesce({{ ss }}, '') ilike '%pinterest%'
+            and coalesce({{ sm }}, '') ilike '%paid%'
         then 'Pinterest'
 
-        when {{ medium }} like 'organic' --or {{ sp }} like '%shopping free listings%'
+        -- Organic Search + Shopping
+        when
+            (
+                coalesce({{ sm }}, '') = 'organic'
+                or coalesce({{ ss }}, '')
+                rlike '.*360\\\\.cn.*|.*alice.*|.*aol.*|.*ask.*|.*auone.*|.*avg.*|.*babylon.*|.*baidu.*|.*biglobe.*|.*bing.*|.*centrum\\\\.cz.*|.*cnn.*|.*comcast.*|.*conduit.*|.*daum.*|.*dogpile.*|.*duckduckgo.*|.*ecosia\\\\.org.*|.*seznam.*|.*eniro.*|.*exalead\\\\.com.*|.*excite\\\\.com.*|.*firmy.*|.*globo.*|.*go\\\\.mail\\\\.ru.*|.*google.*|.*google-play.*|.*incredimail.*|.*kvasir.*|.*qwant.*|.*lycos.*|.*naver.*|.*sogou.*|.*yandex.*|.*rambler.*|.*msn.*|.*najdi.*|.*onet.*|.*rakuten.*|.*search.*|.*so\\\\.com.*|.*startsiden.*|.*terra.*|.*tut\\\\.by.*|.*ukr.*|.*virgilio.*|.*google shopping.*|.*igshopping.*|.*amazon.*|.*alibaba.*|.*shopify.*|.*stripe.*|.*ebay.*|.*etsy.*|.*mercadolibre.*|.*shopping.*|.*walmart.*|.*shop.*'
+                or coalesce({{ sc }}, '') ilike '%shop%'
+            )
         then 'Organic Search'
 
+        -- Organic Social
         when
             (
-                {{ source }} like '%facebook%'
-                or {{ medium }} like '%social%'
-                or {{ medium }} like '%social-network%'
-                or {{ medium }} like '%social-media%'
-                or {{ medium }} like '%sm%'
-                or {{ medium }} like '%social network%'
-                or {{ medium }} like '%social media%'
+                (
+                    coalesce({{ ss }}, '')
+                    rlike '.*facebook.*|.*instagram.*|.*twitter.*|.*linkedin.*|.*pinterest.*|.*reddit.*|.*igshopping.*|.*meta.*|.*tiktok.*|.*ig.*|.*social.*|.*snapchat.*'
+                    or coalesce({{ sm }}, '') ilike '%social%'
+                    or coalesce({{ sm }}, '') = 'sm'
+                    or coalesce({{ ss }}, '') ilike '%x.com%'
+                )
+                and coalesce({{ sm }}, '') not ilike '%paid%'
             )
-            and {{ medium }} not like '%paid%'
         then 'Organic Social'
 
+        -- Direct
         when
-            {{ source }} like '%narvar%'
-            or {{ source }} like '%direct%'
-            or {{ medium }} like '%direct%'
-            or {{ medium }} like '%(not set)%'
-            or {{ medium }} like '%(none)%'
+            coalesce({{ ss }}, '') ilike '%narvar%'
+            or coalesce({{ ss }}, '') ilike '%direct%'
+            or coalesce({{ sm }}, '') ilike '%(not set)%'
+            or coalesce({{ sm }}, '') ilike '%(none)%'
+            or coalesce({{ sm }}, '') ilike '%direct%'
         then 'Direct'
 
+        -- Referral
         when
             (
-                {{ source }} like '%tb12%'
-                or {{ source }} like '%klaviyo%'
-                or {{ medium }} like '%referral%'
-                or {{ medium }} like '%app%'
-                or {{ medium }} like '%link%'
+                coalesce({{ sm }}, '') ilike '%referral%'
+                or coalesce({{ sm }}, '') ilike '%app%'
+                or coalesce({{ sm }}, '') ilike '%link%'
+                or coalesce({{ ss }}, '') ilike '%TB12%'
+                or coalesce({{ ss }}, '') ilike '%Klaviyo%'
+                or coalesce({{ ss }}, '') ilike '%breakaway%'
             )
-            and ({{ source }} not like '%klarna%' or {{ source }} not like '%api.id.me%')
+            and not (
+                coalesce({{ ss }}, '') ilike '%api.id.me%'
+                or coalesce({{ ss }}, '') ilike '%klarna%'
+            )
         then 'Referral'
 
         else 'Unassigned'
