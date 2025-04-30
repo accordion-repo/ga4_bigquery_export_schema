@@ -23,12 +23,20 @@ with
         select
             shopify_order_id,
             sum(quantity) as quantity,
-            count(distinct case when gift_card_flag='OTHERS' then sku when gift_card_flag='GIFT CARD' then lower(title) else 'NA' end) as unique_items,
+            count(
+                distinct case
+                    when gift_card_flag = 'OTHERS'
+                    then sku
+                    when gift_card_flag = 'GIFT CARD'
+                    then lower(title)
+                    else 'NA'
+                end
+            ) as unique_items,
             sum(gross_sales) as gross_sales,
             sum(gsnd) as gsnd,
             sum(gross_merchandise_value) as gmv,
             sum(shipping_price) as shipping,
-            sum(total_tax+vat_value) as total_tax
+            sum(total_tax + vat_value) as total_tax
         from {{ ref("fact_order_refund") }} shp
         where
             exists (
@@ -36,8 +44,8 @@ with
                 from {{ source("ga4", "analytics_344079407__view") }} ga
                 where
                     trim(ga.ecommerce_transaction_id) = shp.shopify_order_id
-                    and ga.event_date 
-                        > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
+                    and ga.event_date
+                    > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
             )
             and sale_kind = 'ORDER'
             and country = 'US'
@@ -64,8 +72,8 @@ with
                 then null
                 else trim(ecommerce_transaction_id)
             end as shopify_order_id,
-            coalesce(shp.unique_items,ecommerce_unique_items) unique_items,
-            coalesce(shp.quantity,ecommerce_total_item_quantity) total_item_quantity,
+            coalesce(shp.unique_items, ecommerce_unique_items) unique_items,
+            coalesce(shp.quantity, ecommerce_total_item_quantity) total_item_quantity,
             ecommerce_purchase_revenue_in_usd,
             shp.total_tax tax_value,
             shp.shipping shipping_value,
@@ -119,10 +127,12 @@ with
             ) as session_traffic_source_last_click_manual_campaign_content,
             row_number() over (order by event_timestamp) as s_no
         from {{ source("ga4", "analytics_344079407__view") }} ga
-        left join shp_data shp on trim(ga.ecommerce_transaction_id) = shp.shopify_order_id
-        where lower(event_name) = 'purchase' 
+        left join
+            shp_data shp on trim(ga.ecommerce_transaction_id) = shp.shopify_order_id
+        where
+            lower(event_name) = 'purchase'
             and event_date
-                > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
+            > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
     ),
     event_params as (
         select
@@ -136,11 +146,10 @@ with
                     ep.value:value:float_value::string
                 )
             ) as event_value
-        from ga_data a, 
-        lateral flatten(input => event_params) as ep
+        from ga_data a, lateral flatten(input => event_params) as ep
     ),
 
-    res as(
+    res as (
         select
             event_date,
             event_timestamp,
@@ -152,10 +161,10 @@ with
             user_first_touch_timestamp,
             "'ga_session_id'" as ga_session_id,
             coalesce(
-                    "'ga_session_id'" || ':' || user_pseudo_id,
-                    unique_user_id,
-                    "'ga_session_id'"
-                ) as unique_session_id,
+                "'ga_session_id'" || ':' || user_pseudo_id,
+                unique_user_id,
+                "'ga_session_id'"
+            ) as unique_session_id,
             "'ga_session_number'" as ga_session_number,
             "'coupon'" as coupon,
             "'currency'" as currency,
@@ -203,26 +212,31 @@ select
     *,
     {{
         udf_acquisition_channel_grouping(
-            "traffic_source_source", "traffic_source_medium", "traffic_source_name"
+            udf_coalesce("traffic_source_source", "collected_traffic_source_manual_source"),
+            udf_coalesce("traffic_source_medium", "collected_traffic_source_manual_medium"),
+            udf_coalesce(
+                "traffic_source_name", "collected_traffic_source_manual_campaign_name"
+            )
         )
     }} as acquisition_channelgroup_nobull24,
-    case when event_date < '2024-07-16' then
     {{
         udf_session_channel_grouping(
-            "collected_traffic_source_manual_source",
-            "collected_traffic_source_manual_medium",
-            "collected_traffic_source_manual_campaign_name",
-            "collected_traffic_source_manual_source_platform",
+            udf_coalesce(
+                "session_traffic_source_last_click_manual_campaign_source",
+                "collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "session_traffic_source_last_click_manual_campaign_medium",
+                "collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "session_traffic_source_last_click_manual_campaign_campaign_name",
+                "collected_traffic_source_manual_campaign_name",
+            ),
+            udf_coalesce(
+                "session_traffic_source_last_click_manual_campaign_source_platform",
+                "collected_traffic_source_manual_source_platform",
+            ),
         )
-    }}
-    else
-    {{
-        udf_session_channel_grouping(
-            "session_traffic_source_last_click_manual_campaign_source",
-            "session_traffic_source_last_click_manual_campaign_medium",
-            "session_traffic_source_last_click_manual_campaign_campaign_name",
-            "session_traffic_source_last_click_manual_campaign_source_platform",
-        )
-    }} end as session_channelgroup_nobull24
+    }} as session_channelgroup_nobull24
 from res
-
