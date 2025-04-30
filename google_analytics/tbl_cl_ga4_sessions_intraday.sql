@@ -640,16 +640,34 @@ select
     end as visitor_flag,
     {{
         udf_acquisition_channel_grouping(
-            "first_event_traffic_source_source",
-            "first_event_traffic_source_medium",
-            "first_event_traffic_source_name",
+            udf_coalesce(
+                "first_event_traffic_source_source",
+                "first_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "first_event_traffic_source_medium",
+                "first_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "first_event_traffic_source_name",
+                "first_event_collected_traffic_source_manual_campaign_name",
+            ),
         )
     }} as first_event_acquisition_channelgroup_nobull24,
     {{
         udf_acquisition_channel_grouping(
-            "last_event_traffic_source_source",
-            "last_event_traffic_source_medium",
-            "last_event_traffic_source_name",
+            udf_coalesce(
+                "last_event_traffic_source_source",
+                "last_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "last_event_traffic_source_medium",
+                "last_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "last_event_traffic_source_name",
+                "last_event_collected_traffic_source_manual_campaign_name",
+            ),
         )
     }} as last_event_acquisition_channelgroup_nobull24,
     {{
