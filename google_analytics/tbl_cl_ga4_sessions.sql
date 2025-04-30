@@ -49,7 +49,7 @@ with
             {{ ref("fact_customer_type") }} ct
             on ecomm.shopify_order_id = ct.shopify_order_id
             and ecomm.event_date
-             > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
+            > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
     ),
     new_users as (
         select distinct event_date, unique_user_id
@@ -167,7 +167,7 @@ with
             and trim(event_name) = 'purchase'
         where
             event_date
-             > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
+            > (select coalesce(max(event_date), '1900-01-01') from {{ this }})
     ),
     event_params as (
         select
@@ -632,60 +632,78 @@ select
     end as visitor_flag,
     {{
         udf_acquisition_channel_grouping(
-            "first_event_traffic_source_source",
-            "first_event_traffic_source_medium",
-            "first_event_traffic_source_name",
+            udf_coalesce(
+                "first_event_traffic_source_source",
+                "first_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "first_event_traffic_source_medium",
+                "first_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "first_event_traffic_source_name",
+                "first_event_collected_traffic_source_manual_campaign_name",
+            ),
         )
     }} as first_event_acquisition_channelgroup_nobull24,
     {{
         udf_acquisition_channel_grouping(
-            "last_event_traffic_source_source",
-            "last_event_traffic_source_medium",
-            "last_event_traffic_source_name",
+            udf_coalesce(
+                "last_event_traffic_source_source",
+                "last_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "last_event_traffic_source_medium",
+                "last_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "last_event_traffic_source_name",
+                "last_event_collected_traffic_source_manual_campaign_name",
+            ),
         )
     }} as last_event_acquisition_channelgroup_nobull24,
-    case
-        when f.event_date < '2024-07-16'
-        then
-            {{
-                udf_session_channel_grouping(
-                    "first_event_collected_traffic_source_manual_source",
-                    "first_event_collected_traffic_source_manual_medium",
-                    "first_event_collected_traffic_source_manual_campaign_name",
-                    "first_event_collected_traffic_source_manual_source_platform"
-                )
-            }}
-        else
-            {{
-                udf_session_channel_grouping(
-                    "first_event_session_traffic_source_last_click_manual_campaign_source",
-                    "first_event_session_traffic_source_last_click_manual_campaign_medium",
-                    "first_event_session_traffic_source_last_click_manual_campaign_campaign_name",
-                    "first_event_session_traffic_source_last_click_manual_campaign_source_platform"
-                )
-            }}
-    end as first_event_session_channelgroup_nobull24,
-    case
-        when f.event_date < '2024-07-16'
-        then
-            {{
-                udf_session_channel_grouping(
-                    "last_event_collected_traffic_source_manual_source",
-                    "last_event_collected_traffic_source_manual_medium",
-                    "last_event_collected_traffic_source_manual_campaign_name",
-                    "last_event_collected_traffic_source_manual_source_platform"
-                )
-            }}
-        else
-            {{
-                udf_session_channel_grouping(
-                    "last_event_session_traffic_source_last_click_manual_campaign_source",
-                    "last_event_session_traffic_source_last_click_manual_campaign_medium",
-                    "last_event_session_traffic_source_last_click_manual_campaign_campaign_name",
-                    "last_event_session_traffic_source_last_click_manual_campaign_source_platform"
-                )
-            }}
-    end as last_event_session_channelgroup_nobull24
+    {{
+        udf_session_channel_grouping(
+            udf_coalesce(
+                "first_event_session_traffic_source_last_click_manual_campaign_source",
+                "first_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "first_event_session_traffic_source_last_click_manual_campaign_medium",
+                "first_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "first_event_session_traffic_source_last_click_manual_campaign_campaign_name",
+                "first_event_collected_traffic_source_manual_campaign_name",
+            ),
+            udf_coalesce(
+                "first_event_session_traffic_source_last_click_manual_campaign_source_platform",
+                "first_event_collected_traffic_source_manual_source_platform",
+            ),
+        )
+    }}
+    as first_event_session_channelgroup_nobull24,
+    {{
+        udf_session_channel_grouping(
+            udf_coalesce(
+                "last_event_session_traffic_source_last_click_manual_campaign_source",
+                "last_event_collected_traffic_source_manual_source",
+            ),
+            udf_coalesce(
+                "last_event_session_traffic_source_last_click_manual_campaign_medium",
+                "last_event_collected_traffic_source_manual_medium",
+            ),
+            udf_coalesce(
+                "last_event_session_traffic_source_last_click_manual_campaign_campaign_name",
+                "last_event_collected_traffic_source_manual_campaign_name",
+            ),
+            udf_coalesce(
+                "last_event_session_traffic_source_last_click_manual_campaign_source_platform",
+                "last_event_collected_traffic_source_manual_source_platform",
+            ),
+        )
+    }}
+    as last_event_session_channelgroup_nobull24
 from final f
 left join
     new_users nu
